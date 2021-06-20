@@ -468,7 +468,7 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 		wlr_log(WLR_DEBUG, "EXT_platform_device not supported");
 	}
 
-	if (egl->exts.KHR_platform_gbm) {
+	if (true) {
 		int gbm_fd = open_render_node(drm_fd);
 		if (gbm_fd < 0) {
 			wlr_log(WLR_ERROR, "Failed to open DRM render node");
@@ -489,8 +489,6 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 
 		gbm_device_destroy(egl->gbm_device);
 		close(gbm_fd);
-	} else {
-		wlr_log(WLR_DEBUG, "KHR_platform_gbm not supported");
 	}
 
 error:
