@@ -337,8 +337,9 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
 	return libseat_switch_session(session->seat_handle, vt) == 0;
 }
 
-/* Tests if 'path' is KMS compatible by trying to open it. Returns the opened
- * device on success. */
+/* Tests if 'path' is KMS compatible by trying to open it.
+ * It leaves the open device in *fd_out it it succeeds.
+ */
 static struct wlr_device *open_if_kms(struct wlr_session *restrict session,
 		const char *restrict path) {
 	if (!path) {
@@ -350,13 +351,25 @@ static struct wlr_device *open_if_kms(struct wlr_session *restrict session,
 		return NULL;
 	}
 
-	if (!drmIsKMS(dev->fd)) {
-		wlr_log(WLR_DEBUG, "Ignoring '%s': not a KMS device", path);
-		wlr_session_close_file(session, dev);
-		return NULL;
+	// The kernel errors out with EOPNOTSUPP if DRIVER_MODESET isn't set
+	drmModeRes *res = drmModeGetResources(dev->fd);
+	if (!res) {
+		if (errno != EOPNOTSUPP) {
+			wlr_log_errno(WLR_ERROR, "drmModeGetResources(%s) failed", path);
+		}
+		goto out_dev;
 	}
+	if (res->count_crtcs == 0) {
+		drmModeFreeResources(res);
+		goto out_dev;
+	}
+	drmModeFreeResources(res);
 
 	return dev;
+
+out_dev:
+	wlr_session_close_file(session, dev);
+	return NULL;
 }
 
 static ssize_t explicit_find_gpus(struct wlr_session *session,
